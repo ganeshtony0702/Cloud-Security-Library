@@ -57,9 +57,6 @@ Configuration OK
 
 If any syntax errors are present, Logstash will display the line number and configuration file where the issue occurred.
 
-> **Screenshot**`
-![Config-check](01-config-validation.png)
-
 ---
 
 # Step 2 - Start Logstash
@@ -82,11 +79,6 @@ Expected Output
 Active: active (running)
 ```
 
-> **Screenshot**
->
-![logstatus](images/02-logstash-status.png)
-
----
 
 # Step 3 - Monitor Logstash Logs
 
@@ -102,10 +94,6 @@ Look for messages indicating:
 - JDBC connection established
 - Oracle query executed successfully
 - JSON output generated
-
-> **Screenshot**
->
-![journl](images/03-journalctl.png)
 
 ---
 
@@ -163,10 +151,6 @@ tail -f /var/log/logstash/oraclelogs/oracle-db01/*.json
 
 Verify that new audit events continue to appear as Oracle generates additional records.
 
-> **Screenshot**
->
-![Json](images/04-json-output.png)
-
 ---
 
 # Step 6 - Verify Last Run Metadata
@@ -221,10 +205,6 @@ Confirm:
 - Timestamp matches Oracle
 - No duplicate events
 - Expected fields are populated
-
-> **Screenshot**
->
-![Validation](images/06-sentinel-validation.png)
 
 ---
 
