@@ -159,12 +159,6 @@ oracle_audit_user
 oracle_audit_password
 ```
 
-> **Screenshot**
->
-![Keystore](images/03-keystore.png)
-
----
-
 # Step 4 - Create the Oracle Pipeline Configuration
 
 Create a pipeline configuration file under:
