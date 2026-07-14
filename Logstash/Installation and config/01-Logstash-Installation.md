@@ -172,7 +172,7 @@ logstash 9.x.x
 
 > **Screenshot**
 >
-> `images/03-logstash-version.png`
+![logstash-version](images/03-logstash-version.png)
 
 ---
 
