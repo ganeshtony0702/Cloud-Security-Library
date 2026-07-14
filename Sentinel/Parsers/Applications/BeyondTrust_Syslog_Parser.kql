@@ -1,0 +1,122 @@
+let BeyondTrust_Syslog_Parser = () {
+    Syslog
+    | where SyslogMessage has "meta sequenceId"
+        or SyslogMessage has "BeyondTrust|Secure Remote Access"
+    | extend EventType = case(
+                         SyslogMessage has "meta sequenceId",
+                         "Audit",
+                         SyslogMessage has "BeyondTrust|Secure Remote Access",
+                         "Session",
+                         "Other"
+                     )
+    | extend
+        Audit_RawEventTime =
+        iff(
+    EventType == "Audit",
+    extract(@"(\d{2}/\d{2}/\d{4},\s*\d{2}:\d{2}:\d{2}\.\d{3})", 1, SyslogMessage),
+    ""
+),
+        Session_RawEventTime =
+        iff(
+    EventType == "Session",
+    extract(@"^([^|]+)", 1, SyslogMessage),
+    ""
+)
+    | extend
+        Audit_EventTime =
+        iff(Audit_RawEventTime != "", todatetime(Audit_RawEventTime), datetime(null)),
+        Session_EventTime =
+        iff(Session_RawEventTime != "", todatetime(Session_RawEventTime), datetime(null))
+    | extend EventTime = coalesce(Audit_EventTime, Session_EventTime, TimeGenerated)
+    | extend
+        Audit_EventName   = iff(EventType == "Audit", extract(@"event=([^\s]+)", 1, SyslogMessage), ""),
+        Site              = iff(EventType == "Audit", extract(@"site=([^\s]+)", 1, SyslogMessage), ""),
+        Status            = iff(EventType == "Audit", extract(@"status=([^\s]+)", 1, SyslogMessage), ""),
+        Target            = iff(EventType == "Audit", extract(@"target=([^\s]+)", 1, SyslogMessage), ""),
+        EpochTime         = iff(EventType == "Audit", extract(@"when=([0-9]+)", 1, SyslogMessage), ""),
+        AuthMethod        = iff(EventType == "Audit", extract(@"using\s+([^\s]+)", 1, SyslogMessage), ""),
+        SourceIP          = iff(EventType == "Audit", extract(@"who_ip=([^\s]+)", 1, SyslogMessage), ""),
+        RawWho            = iff(EventType == "Audit", extract(@"who=([^\r\n]+)", 1, SyslogMessage), "")
+    | extend
+        UserDisplayName = iff(EventType == "Audit", trim(" ", extract(@"^(.*?)\s*\(", 1, RawWho)), ""),
+        UserEmail       = iff(EventType == "Audit", extract(@"\(([^)]+)\)", 1, RawWho), "")
+    | extend
+        Vendor            = iff(EventType == "Session", extract(@"^[^|]+\|([^|]+)\|", 1, SyslogMessage), ""),
+        Product           = iff(EventType == "Session", extract(@"^[^|]+\|[^|]+\|([^|]+)\|", 1, SyslogMessage), ""),
+        Version           = iff(EventType == "Session", extract(@"^[^|]+\|[^|]+\|[^|]+\|([^|]+)\|", 1, SyslogMessage), ""),
+        EventId           = iff(EventType == "Session", extract(@"^[^|]+\|[^|]+\|[^|]+\|[^|]+\|([^|]+)\|", 1, SyslogMessage), ""),
+        Session_EventName = iff(EventType == "Session", extract(@"^[^|]+\|[^|]+\|[^|]+\|[^|]+\|[^|]+\|([^|]+)\|", 1, SyslogMessage), ""),
+        deviceHost        = iff(EventType == "Session", extract(@"deviceHost=([^|]+)", 1, SyslogMessage), ""),
+        sessionId         = iff(EventType == "Session", extract(@"sessionId=([^|]+)", 1, SyslogMessage), ""),
+        externalKeyLabel  = iff(EventType == "Session", extract(@"externalKeyLabel=([^|]+)", 1, SyslogMessage), ""),
+        jumpointId        = iff(EventType == "Session", extract(@"jumpointId=([^|]+)", 1, SyslogMessage), ""),
+        jumpointName      = iff(EventType == "Session", extract(@"jumpointName=([^|]+)", 1, SyslogMessage), ""),
+        jumpGroupId       = iff(EventType == "Session", extract(@"jumpGroupId=([^|]+)", 1, SyslogMessage), ""),
+        jumpGroupName     = iff(EventType == "Session", extract(@"jumpGroupName=([^|]+)", 1, SyslogMessage), ""),
+        jumpGroupType     = iff(EventType == "Session", extract(@"jumpGroupType=([^|]+)", 1, SyslogMessage), ""),
+        srcUser           = iff(EventType == "Session", extract(@"srcUser=([^|]+)", 1, SyslogMessage), ""),
+        srcUid            = iff(EventType == "Session", extract(@"srcUid=([^|]+)", 1, SyslogMessage), ""),
+        srcAddr           = iff(EventType == "Session", extract(@"srcAddr=([^|]+)", 1, SyslogMessage), ""),
+        srcHost           = iff(EventType == "Session", extract(@"srcHost=([^|]+)", 1, SyslogMessage), ""),
+        srcPort           = iff(EventType == "Session", extract(@"srcPort=([^|]+)", 1, SyslogMessage), ""),
+        srcPrivAddr       = iff(EventType == "Session", extract(@"srcPrivAddr=([^|]+)", 1, SyslogMessage), ""),
+        srcPriv           = iff(EventType == "Session", extract(@"srcPriv=([^|]+)", 1, SyslogMessage), ""),
+        dstUser           = iff(EventType == "Session", extract(@"dstUser=([^|]+)", 1, SyslogMessage), ""),
+        dstUid            = iff(EventType == "Session", extract(@"dstUid=([^|]+)", 1, SyslogMessage), ""),
+        dstAddr           = iff(EventType == "Session", extract(@"dstAddr=([^|]+)", 1, SyslogMessage), ""),
+        dstPrivAddr       = iff(EventType == "Session", extract(@"dstPrivAddr=([^|]+)", 1, SyslogMessage), ""),
+        dstPriv           = iff(EventType == "Session", extract(@"dstPriv=([^|]+)", 1, SyslogMessage), ""),
+        confMemPrivName   = iff(EventType == "Session", extract(@"confMemPrivName=([^|]+)", 1, SyslogMessage), ""),
+        username          = iff(EventType == "Session", extract(@"username=([^|]+)", 1, SyslogMessage), ""),
+        private_ip        = iff(EventType == "Session", extract(@"private_ip=([^|]+)", 1, SyslogMessage), ""),
+        public_ip         = iff(EventType == "Session", extract(@"public_ip=([^|]+)", 1, SyslogMessage), ""),
+        confMemOs         = iff(EventType == "Session", extract(@"confMemOs=([^|]+)", 1, SyslogMessage), ""),
+        confMemTeams      = iff(EventType == "Session", extract(@"confMemTeams=([^|]+)", 1, SyslogMessage), ""),
+        msg               = iff(EventType == "Session", extract(@"msg=([^|]+)", 1, SyslogMessage), "")
+    | extend EventName = coalesce(Audit_EventName, Session_EventName)
+    | project
+        TimeGenerated,
+        EventTime,
+        EventType,
+        EventName,
+        Status,
+        Target,
+        AuthMethod,
+        UserDisplayName,
+        UserEmail,
+        SourceIP,
+        Site,
+        Vendor,
+        Product,
+        Version,
+        EventId,
+        deviceHost,
+        sessionId,
+        externalKeyLabel,
+        jumpointId,
+        jumpointName,
+        jumpGroupId,
+        jumpGroupName,
+        jumpGroupType,
+        srcUser,
+        srcUid,
+        srcAddr,
+        srcHost,
+        srcPort,
+        srcPrivAddr,
+        srcPriv,
+        dstUser,
+        dstUid,
+        dstAddr,
+        dstPrivAddr,
+        dstPriv,
+        confMemPrivName,
+        username,
+        private_ip,
+        public_ip,
+        confMemOs,
+        confMemTeams,
+        msg,
+        SyslogMessage
+};
+BeyondTrust_Syslog_Parser
