@@ -1,0 +1,72 @@
+let BeyondTrust_Audit_Parser = () {
+    Syslog
+    | where Computer contains "10.220.11.11"
+    | extend AgentID = extract(@"Agent\s*ID\s*:\s*""([^""]*)""", 1, SyslogMessage)
+    | extend AgentVer = extract(@"Agent\s*Ver\s*:\s*""([^""]*)""", 1, SyslogMessage)
+    | extend Category = extract(@"Category\s*:\s*""([^""]*)""", 1, SyslogMessage)
+    | extend SourceHost = extract(@"Source\s*Host\s*:\s*""([^""]*)""", 1, SyslogMessage)
+    | extend EventDesc = extract(@"Event\s*Desc\s*:\s*""([^""]*)""", 1, SyslogMessage)
+    | extend EventName = extract(@"Event\s*Name\s*:\s*""([^""]*)""", 1, SyslogMessage)
+    | extend OS = extract(@"OS\s*:\s*""([^""]*)""", 1, SyslogMessage)
+    | extend SourceIP = extract(@"Source\s*IP\s*:\s*""([^""]*)""", 1, SyslogMessage)
+    | extend EventSubject = extract(@"Event\s*Subject\s*:\s*""([^""]*)""", 1, SyslogMessage)
+    | extend EventType = extract(@"Event\s*Type\s*:\s*""([^""]*)""", 1, SyslogMessage)
+    | extend User = extract(@"User\s*:\s*""([^""]*)""", 1, SyslogMessage)
+    | extend WorkgroupDesc = extract(@"Workgroup\s*Desc\s*:\s*""([^""]*)""", 1, SyslogMessage)
+    | extend WorkgroupID = extract(@"Workgroup\s*ID\s*:\s*""([^""]*)""", 1, SyslogMessage)
+    | extend WorkgroupLocation = extract(@"Workgroup\s*Location\s*:\s*""([^""]*)""", 1, SyslogMessage)
+    | extend AuditID = extract(@"AuditID\s*:\s*""([^""]*)""", 1, SyslogMessage)
+    | extend ActionType = extract(@"ActionType\s*:\s*""([^""]*)""", 1, SyslogMessage)
+    | extend SystemName = extract(@"SystemName\s*:\s*""([^""]*)""", 1, SyslogMessage)
+    | extend AppUserID = extract(@"AppUserID\s*:\s*""([^""]*)""", 1, SyslogMessage)
+    | extend CreateDate = extract(@"CreateDate\s*:\s*""([^""]*)""", 1, SyslogMessage)
+    | extend UserName = extract(@"UserName\s*:\s*""([^""]*)""", 1, SyslogMessage)
+    | extend IPAddress = extract(@"IPAddress\s*:\s*""([^""]*)""", 1, SyslogMessage)
+    | extend AuthenticationType = extract(@"Authentication\s*Type\s*:\s*""([^""]*)""", 1, SyslogMessage)
+    | extend FailedUser = extract(@"Failed for:\s*([^,]+)", 1, SyslogMessage)
+    | extend Desc = extract(@"Desc\s*:\s*""([^""]*)""", 1, SyslogMessage)
+    | extend EventSeverity = extract(@"Event\s*Severity\s*:\s*""([^""]*)""", 1, SyslogMessage)
+    | extend bt_Category = extract(@"bt_Category\s*:\s*""([^""]*)""", 1, SyslogMessage)
+    | extend LogID = extract(@"LogID\s*:\s*""([^""]*)""", 1, SyslogMessage)
+    | extend LogTime = extract(@"LogTime\s*:\s*""([^""]*)""", 1, SyslogMessage)
+    | extend Target = extract(@"Target\s*:\s*""([^""]*)""", 1, SyslogMessage)
+    | extend RoleUsed = extract(@"RoleUsed\s*:\s*""([^""]*)""", 1, SyslogMessage)
+    | extend ObjectType = extract(@"ObjectType\s*:\s*""([^""]*)""", 1, SyslogMessage)
+    | extend ObjectID = extract(@"ObjectID\s*:\s*""([^""]*)""", 1, SyslogMessage)
+    | extend Operation = extract(@"Operation\s*:\s*""([^""]*)""", 1, SyslogMessage)
+    | extend Failed = extract(@"Failed\s*:\s*""([^""]*)""", 1, SyslogMessage)
+    | extend Reason = extract(@"Reason\s*:\s*""([^""]*)""", 1, SyslogMessage)
+    | extend TicketSystem = extract(@"TicketSystem\s*:\s*""([^""]*)""", 1, SyslogMessage)
+    | extend TicketNumber = extract(@"TicketNumber\s*:\s*""([^""]*)""", 1, SyslogMessage)
+    | extend Approver = extract(@"Approver\s*:\s*""([^""]*)""", 1, SyslogMessage)
+    | project
+        TimeGenerated,
+        Computer,
+        AgentID,
+        AgentVer,
+        Category,
+        SourceHost,
+        EventDesc,
+        EventName,
+        SourceIP,
+        EventSubject,
+        EventType,
+        User,
+        Target,
+        IPAddress,
+        Desc,
+        EventSeverity,
+        bt_Category,
+        LogID,
+        LogTime,
+        UserName,
+        RoleUsed,
+        ObjectType,
+        ObjectID,
+        Operation,
+        Failed,
+        Reason,
+        Approver,
+        SyslogMessage
+};
+BeyondTrust_Audit_Parser
