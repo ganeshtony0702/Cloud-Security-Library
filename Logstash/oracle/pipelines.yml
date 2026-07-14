@@ -1,7 +1,0 @@
-- pipeline.id: oracle-db01
-  path.config: "/etc/logstash/conf.d/oracle-db01.conf"
-  pipeline.workers: 1
-
-- pipeline.id: oracle-db02
-  path.config: "/etc/logstash/conf.d/oracle-db02.conf"
-  pipeline.workers: 1
