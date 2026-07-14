@@ -112,12 +112,6 @@ Expected output:
 /usr/lib/jvm/java-21-openjdk-amd64
 ```
 
-> **Screenshot**
->
-![JAVA_HOME Verification](images/02-java-home.png)
-
----
-
 # Step 5 - Install Logstash Repository
 
 Import the Elastic GPG key.
@@ -169,12 +163,6 @@ Expected output:
 ```text
 logstash 9.x.x
 ```
-
-> **Screenshot**
->
-![logstash-version](images/03-logstash-version.png)
-
----
 
 # Installation Directory
 
