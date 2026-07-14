@@ -1,0 +1,55 @@
+oracle_audit_CL
+| extend parsed = parse_json(RawData)
+| extend TimeGenerated        = todatetime(parsed.event_timestamp)
+| extend EventTimestamp     = todatetime(parsed.event_timestamp)
+| extend EventTimestamp       = todatetime(parsed.event_timestamp)
+| extend EventTimestampUTC    = todatetime(parsed.event_timestamp_utc)
+| extend AuditType            = tostring(parsed.audit_type)
+| extend ActionName           = tostring(parsed.action_name)
+| extend ReturnCode           = toint(parsed.return_code)
+| extend EventOutcome = iff(toint(parsed.return_code) == 0, "Success", "Failure")
+| extend DatabaseUser         = tostring(parsed.dbusername)
+| extend OSUser               = tostring(parsed.os_username)
+| extend UserHost             = tostring(parsed.userhost)
+| extend AuthTypeRaw          = tostring(parsed.authentication_type)
+| extend AuthMethod = iff(
+                          AuthTypeRaw contains "TYPE=(",
+                          extract(@"TYPE=\(([^)]+)\)", 1, AuthTypeRaw),
+                          AuthTypeRaw
+                      )
+| extend ClientProgramRaw     = tostring(parsed.client_program_name)
+| extend ClientProgram = iff(
+                             ClientProgramRaw contains "@",
+                             tostring(split(ClientProgramRaw, "@")[0]),
+                             ClientProgramRaw
+                         )
+| extend ClientHostname = iff(
+                              ClientProgramRaw contains "@",
+                              tostring(split(tostring(split(ClientProgramRaw, "@")[1]), " ")[0]),
+                              ""
+                          )
+| extend ObjectName           = tostring(parsed.object_name)
+| extend ObjectSchema         = tostring(parsed.object_schema)
+| extend FullObjectName       = iff(
+                                    isnotempty(tostring(parsed.object_schema)) and isnotempty(tostring(parsed.object_name)),
+                                    strcat(tostring(parsed.object_schema), ".", tostring(parsed.object_name)),
+                                    coalesce(tostring(parsed.object_name), tostring(parsed.object_schema), "N/A")
+                                )
+| extend SqlText              = tostring(parsed.sql_text)
+| extend AdditionalInfo       = tostring(parsed.additional_info)
+| extend Role                 = tostring(parsed.role)
+| extend SourceIP = extract(@"HOST=([^)]+)", 1, AuthTypeRaw)
+| extend SourcePort = toint(extract(@"PORT=([^)]+)", 1, AuthTypeRaw))
+| extend OracleServer         = tostring(parsed.oracle_server)
+| extend EntryId              = toint(parsed.entry_id)
+| project-away
+    parsed,
+    RawData,
+    ClientProgramRaw,
+    AuthTypeRaw,
+    EventTimestamp,
+    EventTimestampUTC,
+    _ResourceId,
+    Type,
+    TenantId
+| sort by TimeGenerated
