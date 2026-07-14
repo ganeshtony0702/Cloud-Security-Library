@@ -119,7 +119,7 @@ Expected output:
 
 > **Screenshot**
 >
-> `images/02-java-home.png`
+![JAVA_HOME Verification](images/02-java-home.png)
 
 ---
 
