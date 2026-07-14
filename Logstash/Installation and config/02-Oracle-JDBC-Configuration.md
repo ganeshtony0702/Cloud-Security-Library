@@ -92,12 +92,6 @@ Assign appropriate permissions.
 sudo chmod 644 /usr/share/logstash/logstash-core/lib/jars/ojdbc8.jar
 ```
 
-> **Screenshot**
->
-> `images/01-jdbc-driver.png`
-
----
-
 # Step 2 - Verify Oracle Connectivity
 
 Before configuring the pipeline, verify that the Oracle listener is reachable.
@@ -111,12 +105,6 @@ Expected Output
 ```text
 Connection to <oracle_server> 1521 port [tcp/*] succeeded!
 ```
-
-> **Screenshot**
->
-> `images/02-oracle-connectivity.png`
-
----
 
 # Step 3 - Configure Logstash Keystore
 
@@ -173,7 +161,7 @@ oracle_audit_password
 
 > **Screenshot**
 >
-> `images/03-keystore.png`
+![Keystore](images/03-keystore.png)
 
 ---
 
