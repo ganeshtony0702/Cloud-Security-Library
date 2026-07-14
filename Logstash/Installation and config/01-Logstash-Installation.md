@@ -71,11 +71,6 @@ Expected output:
 
 ```text
 openjdk version "21"
-```
-
-> **Screenshot**
->
-> `images/01-java-version.png`
 
 ---
 
