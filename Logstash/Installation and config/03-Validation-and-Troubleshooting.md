@@ -57,9 +57,8 @@ Configuration OK
 
 If any syntax errors are present, Logstash will display the line number and configuration file where the issue occurred.
 
-> **Screenshot**
->
-> `images/01-config-validation.png`
+> **Screenshot**`
+![Config-check](01-config-validation.png)
 
 ---
 
@@ -85,7 +84,7 @@ Active: active (running)
 
 > **Screenshot**
 >
-> `images/02-logstash-status.png`
+![logstatus](images/02-logstash-status.png)
 
 ---
 
@@ -106,7 +105,7 @@ Look for messages indicating:
 
 > **Screenshot**
 >
-> `images/03-journalctl.png`
+![journl](images/03-journalctl.png)
 
 ---
 
@@ -166,7 +165,7 @@ Verify that new audit events continue to appear as Oracle generates additional r
 
 > **Screenshot**
 >
-> `images/04-json-output.png`
+![Json](images/04-json-output.png)
 
 ---
 
@@ -189,10 +188,6 @@ cat /var/lib/logstash/logstash_last_run/oracle-db01_last_run
 The timestamp should update after every successful polling cycle.
 
 This confirms that Logstash is tracking the last processed Oracle audit record.
-
-> **Screenshot**
->
-> `images/05-last-run.png`
 
 ---
 
@@ -229,7 +224,7 @@ Confirm:
 
 > **Screenshot**
 >
-> `images/06-sentinel-validation.png`
+![Validation](images/06-sentinel-validation.png)
 
 ---
 
