@@ -1,0 +1,29 @@
+Syslog
+| where SyslogMessage startswith "Oracle Audit"
+| extend
+    ProcessId = extract(@"Oracle Audit\[(\d+)\]", 1, SyslogMessage),
+    Length = extract(@"LENGTH\s*:\s*'(\d+)'", 1, SyslogMessage),
+    Action = extract(@"ACTION\s*:\[\d+\]\s*'([^']+)'", 1, SyslogMessage),
+    DatabaseUser = extract(@"DATABASE USER:\[\d+\]\s*'([^']*)'", 1, SyslogMessage),
+    Privilege = extract(@"PRIVILEGE\s*:\[\d+\]\s*'([^']*)'", 1, SyslogMessage),
+    ClientUser = extract(@"CLIENT USER:\[\d+\]\s*'([^']*)'", 1, SyslogMessage),
+    ClientTerminal = extract(@"CLIENT TERMINAL:\[\d+\]\s*'([^']*)'", 1, SyslogMessage),
+    Status = extract(@"STATUS:\[\d+\]\s*'([^']*)'", 1, SyslogMessage),
+    DBID = extract(@"DBID:\[\d+\]\s*'([^']*)'", 1, SyslogMessage),
+    SessionId = extract(@"SESSIONID:\[\d+\]\s*'([^']*)'", 1, SyslogMessage),
+    UserHost = extract(@"USERHOST:\[\d+\]\s*'([^']*)'", 1, SyslogMessage),
+    ClientAddress = extract(@"CLIENT ADDRESS:\[\d+\]\s*'([^']*)'", 1, SyslogMessage),
+    ActionNumber = extract(@"ACTION NUMBER:\[\d+\]\s*'([^']*)'", 1, SyslogMessage)
+| project
+    TimeGenerated,
+    Computer,
+    ProcessId,
+    Action,
+    DatabaseUser,
+    Privilege,
+    ClientUser,
+    UserHost,
+    ClientAddress,
+    SessionId,
+    Status,
+    ActionNumber
