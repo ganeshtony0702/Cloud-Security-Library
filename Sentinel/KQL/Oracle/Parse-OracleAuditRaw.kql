@@ -1,0 +1,21 @@
+OracleAudit_CL
+| extend Parsed = parse_json(RawData)
+| project
+    TimeGenerated,
+    EventTimeUTC = todatetime(Parsed.event_timestamp_utc),
+    OracleServer = tostring(Parsed.oracle_server),
+    DBUser = tostring(Parsed.dbusername),
+    OSUser = tostring(Parsed.os_username),
+    Action = tostring(Parsed.action_name),
+    ClientProgram = tostring(Parsed.client_program_name),
+    UserHost = tostring(Parsed.userhost),
+    ReturnCode = toint(Parsed.return_code),
+    EntryId = toint(Parsed.entry_id),
+    AuditType = tostring(Parsed.audit_type),
+    AuthenticationType = tostring(Parsed.authentication_type),
+    SQLText = tostring(Parsed.sql_text),
+    ObjectSchema = tostring(Parsed.object_schema),
+    ObjectName = tostring(Parsed.object_name),
+    Role = tostring(Parsed.role),
+    AdditionalInfo = tostring(Parsed.additional_info),
+    RawData
