@@ -1,0 +1,511 @@
+{
+    "definition": {
+        "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+        "contentVersion": "1.0.0.0",
+        "actions": {
+            "Entities_-_Get_IPs": {
+                "type": "ApiConnection",
+                "inputs": {
+                    "host": {
+                        "connection": {
+                            "referenceName": "azuresentinel-3"
+                        }
+                    },
+                    "method": "post",
+                    "body": "@triggerBody()?['object']?['properties']?['relatedEntities']",
+                    "path": "/entities/ip"
+                },
+                "runAfter": {}
+            },
+            "Initialize_variables": {
+                "type": "InitializeVariable",
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "IPList",
+                            "type": "array",
+                            "value": []
+                        },
+                        {
+                            "name": "Source of Truth Values",
+                            "type": "array",
+                            "value": []
+                        }
+                    ]
+                },
+                "runAfter": {
+                    "Get_secret": [
+                        "SUCCEEDED"
+                    ]
+                }
+            },
+            "For_each": {
+                "type": "Foreach",
+                "foreach": "@body('Entities_-_Get_IPs')?['IPs']",
+                "actions": {
+                    "Condition": {
+                        "type": "If",
+                        "expression": {
+                            "and": [
+                                {
+                                    "equals": [
+                                        "@and(\n  not(empty(items('For_each')?['Address'])),\n      items('For_each')?['Address']\n    )\n  ),\n  not(startsWith(items('For_each')?['Address'],'10.')),\n  not(startsWith(items('For_each')?['Address'],'192.168')),\n  not(startsWith(items('For_each')?['Address'],'127.')),\n  not(startsWith(items('For_each')?['Address'],'169.254.')),\n  not(\n    and(\n      startsWith(items('For_each')?['Address'],'172.'),\n      greaterOrEquals(\n        int(split(items('For_each')?['Address'],'.')[1]),\n        16\n      ),\n      lessOrEquals(\n        int(split(items('For_each')?['Address'],'.')[1]),\n        31\n      )\n    )\n  )\n)",
+                                        true
+                                    ]
+                                }
+                            ]
+                        },
+                        "actions": {
+                            "HTTP_AbuseIPDB_check": {
+                                "type": "Http",
+                                "inputs": {
+                                    "uri": "https://api.abuseipdb.com/api/v2/check?ipAddress=@{items('For_each')?['Address']}&maxAgeInDays=90",
+                                    "method": "GET",
+                                    "headers": {
+                                        "key": "@{body('Get_secret')?['value']}",
+                                        "accept": "application/json"
+                                    }
+                                },
+                                "runtimeConfiguration": {
+                                    "contentTransfer": {
+                                        "transferMode": "Chunked"
+                                    }
+                                }
+                            },
+                            "Parse_JSON_AbuseIPDB": {
+                                "type": "ParseJson",
+                                "inputs": {
+                                    "content": "@body('HTTP_AbuseIPDB_check')",
+                                    "schema": {
+                                        "type": "object",
+                                        "properties": {
+                                            "data": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "ipAddress": {
+                                                        "type": "string"
+                                                    },
+                                                    "isPublic": {
+                                                        "type": "boolean"
+                                                    },
+                                                    "ipVersion": {
+                                                        "type": "integer"
+                                                    },
+                                                    "isWhitelisted": {
+                                                        "type": "boolean"
+                                                    },
+                                                    "abuseConfidenceScore": {
+                                                        "type": "integer"
+                                                    },
+                                                    "countryCode": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "usageType": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "isp": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "domain": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    },
+                                                    "hostnames": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "isTor": {
+                                                        "type": "boolean"
+                                                    },
+                                                    "totalReports": {
+                                                        "type": "integer"
+                                                    },
+                                                    "numDistinctUsers": {
+                                                        "type": "integer"
+                                                    },
+                                                    "lastReportedAt": {
+                                                        "type": [
+                                                            "string",
+                                                            "null"
+                                                        ]
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                                "runAfter": {
+                                    "HTTP_AbuseIPDB_check": [
+                                        "SUCCEEDED"
+                                    ]
+                                }
+                            },
+                            "Post_adaptive_card_and_wait_for_a_response": {
+                                "type": "ApiConnectionWebhook",
+                                "inputs": {
+                                    "host": {
+                                        "connection": {
+                                            "referenceName": "teams"
+                                        }
+                                    },
+                                    "body": {
+                                        "notificationUrl": "@listCallbackUrl()",
+                                        "body": {
+                                            "messageBody": "{\n\"$schema\": \"http://adaptivecards.io/schemas/adaptive-card.json\",\n\"type\": \"AdaptiveCard\",\n\"version\": \"1.4\",\n\"body\": [\n{\n\"type\": \"TextBlock\",\n\"size\": \"Large\",\n\"weight\": \"Bolder\",\n\"color\": \"Attention\",\n\"text\": \"@{triggerBody()?['object']?['properties']?['title']}\"\n},\n{\n  \"type\": \"TextBlock\",\n  \"text\": \"🌐 @{items('For_each')?['Address']}\",\n  \"weight\": \"Bolder\",\n  \"color\": \"Attention\",\n  \"wrap\": true\n},\n{\n\"type\": \"FactSet\",\n\"facts\": [\n{\n\"title\": \"Incident Number\",\n\"value\": \"@{triggerBody()?['object']?['properties']?['incidentNumber']}\"\n},\n{\n\"title\": \"Severity\",\n\"value\": \"@{triggerBody()?['object']?['properties']?['severity']}\"\n},\n{\n\"title\": \"Status\",\n\"value\": \"@{triggerBody()?['object']?['properties']?['status']}\"\n},\n{\n\"title\": \"Created Time (UTC)\",\n\"value\": \"@{triggerBody()?['object']?['properties']?['createdTimeUtc']}\"\n},\n{\n\"title\": \"Abuse Score\",\n\"value\": \"@{body('Parse_JSON_AbuseIPDB')?['data']?['abuseConfidenceScore']}\"\n},\n{\n\"title\": \"Country\",\n\"value\": \"@{body('Parse_JSON_AbuseIPDB')?['data']?['countryCode']}\"\n},\n{\n\"title\": \"ISP\",\n\"value\": \"@{body('Parse_JSON_AbuseIPDB')?['data']?['isp']}\"\n},\n{\n\"title\": \"Usage Type\",\n\"value\": \"@{body('Parse_JSON_AbuseIPDB')?['data']?['usageType']}\"\n},\n{\n\"title\": \"Domain\",\n\"value\": \"@{body('Parse_JSON_AbuseIPDB')?['data']?['domain']}\"\n},\n{\n\"title\": \"Total Reports\",\n\"value\": \"@{body('Parse_JSON_AbuseIPDB')?['data']?['totalReports']}\"\n}\n]\n}\n],\n\"actions\": [\n{\n\"type\": \"Action.ShowCard\",\n\"title\": \"BLOCK\",\n\"style\": \"destructive\",\n\"card\": {\n\"type\": \"AdaptiveCard\",\n\"body\": [\n{\n\"type\": \"TextBlock\",\n\"text\": \"⚠️ Are you sure you want to block this IP in WAF?\",\n\"weight\": \"Bolder\",\n\"color\": \"Attention\",\n\"wrap\": true\n},\n{\n\"type\": \"TextBlock\",\n\"text\": \"IP Address: @{items('For_each')?['Address']}\",\n\"wrap\": true\n},\n{\n\"type\": \"TextBlock\",\n\"text\": \"Incident #: @{triggerBody()?['object']?['properties']?['incidentNumber']}\",\n\"wrap\": true\n}\n],\n\"actions\": [\n{\n\"type\": \"Action.Submit\",\n\"title\": \"YES - BLOCK\",\n\"style\": \"destructive\",\n\"data\": {\n\"submitActionId\": \"block\"\n}\n},\n{\n\"type\": \"Action.Submit\",\n\"title\": \"NO\",\n\"data\": {\n\"submitActionId\": \"ignore\"\n}\n}\n]\n}\n},\n{\n\"type\": \"Action.Submit\",\n\"title\": \"IGNORE\",\n\"data\": {\n\"submitActionId\": \"ignore\"\n}\n},\n{\n\"type\": \"Action.OpenUrl\",\n\"title\": \"OPEN INCIDENT\",\n\"url\": \"@{triggerBody()?['object']?['properties']?['incidentUrl']}\"\n}\n]\n}",
+                                            "updateMessage": "SOC response received.",
+                                            "recipient": {
+                                                "groupId": "ab765641-608f-4fb9-ae8b-5f81f8e2042d",
+                                                "channelId": "19:39f69e2ec668480f83134f6698e136ac@thread.tacv2"
+                                            }
+                                        }
+                                    },
+                                    "path": "/v1.0/teams/conversation/gatherinput/poster/Flow bot/location/@{encodeURIComponent('Channel')}/$subscriptions"
+                                },
+                                "runAfter": {
+                                    "Parse_JSON_AbuseIPDB": [
+                                        "SUCCEEDED"
+                                    ]
+                                }
+                            },
+                            "Condition_=_Block": {
+                                "type": "If",
+                                "expression": {
+                                    "and": [
+                                        {
+                                            "equals": [
+                                                "@body('Post_adaptive_card_and_wait_for_a_response')?['data']?['submitActionId']",
+                                                "block"
+                                            ]
+                                        }
+                                    ]
+                                },
+                                "actions": {
+                                    "Append_to_array_EDL_TXT": {
+                                        "type": "AppendToArrayVariable",
+                                        "inputs": {
+                                            "name": "IPList",
+                                            "value": "@items('For_each')?['Address']"
+                                        }
+                                    },
+                                    "Append_to_array_SOT": {
+                                        "type": "AppendToArrayVariable",
+                                        "inputs": {
+                                            "name": "Source of Truth Values",
+                                            "value": {
+                                                "ip": "@items('For_each')?['Address']",
+                                                "action": "block",
+                                                "approvedBy": "@body('Post_adaptive_card_and_wait_for_a_response')?['responder']?['displayName']",
+                                                "approverEmail": "@body('Post_adaptive_card_and_wait_for_a_response')?['responder']?['email']",
+                                                "approvedOn": "@utcNow()",
+                                                "addedOn": "@utcNow()",
+                                                "expiresOn": "@addDays(utcNow(), 7)",
+                                                "incidentNumber": "@triggerBody()?['object']?['properties']?['incidentNumber']",
+                                                "incidentTitle": "@triggerBody()?['object']?['properties']?['title']",
+                                                "incidentSeverity": "@triggerBody()?['object']?['properties']?['severity']",
+                                                "incidentCreatedTime": "@triggerBody()?['object']?['properties']?['createdTimeUtc']",
+                                                "incidentOwner": "@triggerBody()?['object']?['properties']?['owner']?['userPrincipalName']"
+                                            }
+                                        }
+                                    }
+                                },
+                                "else": {
+                                    "actions": {}
+                                },
+                                "runAfter": {
+                                    "Post_adaptive_card_and_wait_for_a_response": [
+                                        "SUCCEEDED"
+                                    ]
+                                }
+                            },
+                            "Teams_response": {
+                                "type": "If",
+                                "expression": {
+                                    "and": [
+                                        {
+                                            "equals": [
+                                                "@body('Post_adaptive_card_and_wait_for_a_response')?['data']?['submitActionId']",
+                                                "block"
+                                            ]
+                                        }
+                                    ]
+                                },
+                                "actions": {
+                                    "Teams_channel_response": {
+                                        "type": "ApiConnection",
+                                        "inputs": {
+                                            "host": {
+                                                "connection": {
+                                                    "referenceName": "teams"
+                                                }
+                                            },
+                                            "method": "post",
+                                            "body": {
+                                                "recipient": {
+                                                    "groupId": "ab765641-608f-4fb9-ae8b-5f81f8e2042d",
+                                                    "channelId": "19:39f69e2ec668480f83134f6698e136ac@thread.tacv2"
+                                                },
+                                                "messageBody": "<p class=\"editor-paragraph\">Incident #: @{triggerBody()?['object']?['properties']?['incidentNumber']}<br>Title: @{triggerBody()?['object']?['properties']?['title']}<br>Severity: @{triggerBody()?['object']?['properties']?['severity']}<br><br>IP Address: @{items('For_each')?['Address']}<br><br>Approved By: @{body('Post_adaptive_card_and_wait_for_a_response')?['responder']?['displayName']}<br>Action: IP added to WAF block list</p>"
+                                            },
+                                            "path": "/beta/teams/conversation/message/poster/Flow bot/location/@{encodeURIComponent('Channel')}"
+                                        }
+                                    }
+                                },
+                                "else": {
+                                    "actions": {}
+                                },
+                                "runAfter": {
+                                    "Post_adaptive_card_and_wait_for_a_response": [
+                                        "SUCCEEDED"
+                                    ]
+                                }
+                            }
+                        },
+                        "else": {
+                            "actions": {
+                                "Skipped_IPs": {
+                                    "type": "Compose",
+                                    "inputs": "@items('For_each')?['Address']"
+                                }
+                            }
+                        }
+                    }
+                },
+                "runAfter": {
+                    "Initialize_variables": [
+                        "SUCCEEDED"
+                    ]
+                }
+            },
+            "HTTP_get_policy": {
+                "type": "Http",
+                "inputs": {
+                    "uri": "https://management.azure.com/subscriptions/87263304-f972-4f60-829d-2219630b0572/resourceGroups/RG-AGW-PUBHUB-UAEN-01/providers/Microsoft.Network/ApplicationGatewayWebApplicationFirewallPolicies/WAF-PUBHUB-UAEN-SOCBlockTest?api-version=2023-09-01",
+                    "method": "GET",
+                    "authentication": {
+                        "type": "ManagedServiceIdentity"
+                    }
+                },
+                "runAfter": {
+                    "Compose_IPs": [
+                        "SUCCEEDED"
+                    ]
+                },
+                "runtimeConfiguration": {
+                    "contentTransfer": {
+                        "transferMode": "Chunked"
+                    }
+                }
+            },
+            "Compose_IPs": {
+                "type": "Compose",
+                "inputs": "@variables('IPList')",
+                "runAfter": {
+                    "For_each": [
+                        "SUCCEEDED"
+                    ]
+                }
+            },
+            "Filter_array": {
+                "type": "Query",
+                "inputs": {
+                    "from": "@body('HTTP_get_policy')?['properties']?['customRules']",
+                    "where": "@equals(item()?['name'], 'SOCBlock')"
+                },
+                "runAfter": {
+                    "HTTP_get_policy": [
+                        "SUCCEEDED"
+                    ]
+                }
+            },
+            "Compose_match_values": {
+                "type": "Compose",
+                "inputs": "@first(body('Filter_array'))?['matchConditions']?[0]?['matchValues']",
+                "runAfter": {
+                    "Filter_array": [
+                        "SUCCEEDED"
+                    ]
+                }
+            },
+            "Compose_Final_IPs": {
+                "type": "Compose",
+                "inputs": "@union(outputs('Compose_match_values'),variables('IPList'))",
+                "runAfter": {
+                    "Compose_match_values": [
+                        "SUCCEEDED"
+                    ]
+                }
+            },
+            "Get_secret": {
+                "type": "ServiceProvider",
+                "inputs": {
+                    "parameters": {
+                        "secretName": "AbuseIPDB-API-Key-ClientSecret-Production"
+                    },
+                    "serviceProviderConfiguration": {
+                        "connectionName": "keyVault",
+                        "operationId": "getSecret",
+                        "serviceProviderId": "/serviceProviders/keyVault"
+                    }
+                },
+                "runAfter": {
+                    "Entities_-_Get_IPs": [
+                        "SUCCEEDED"
+                    ]
+                },
+                "runtimeConfiguration": {
+                    "secureData": {
+                        "properties": [
+                            "inputs",
+                            "outputs"
+                        ]
+                    }
+                }
+            },
+            "Rebuild_custom_rules": {
+                "type": "Select",
+                "inputs": {
+                    "from": "@body('HTTP_get_policy')?['properties']?['customRules']",
+                    "select": "@if(\n  equals(item()?['name'], 'SOCBlock'),\n  setProperty(\n    item(),\n    'matchConditions',\n    createArray(\n      setProperty(\n        first(item()?['matchConditions']),\n        'matchValues',\n        outputs('Compose_Final_IPs')\n      )\n    )\n  ),\n  item()\n)"
+                },
+                "runAfter": {
+                    "Compose_Final_IPs": [
+                        "SUCCEEDED"
+                    ]
+                }
+            },
+            "Rebuild_HTTP_PUT_to_WAF": {
+                "type": "Compose",
+                "inputs": "@setProperty(\n  body('HTTP_get_policy'),\n  'properties',\n  setProperty(\n    body('HTTP_get_policy')?['properties'],\n    'customRules',\n    body('Rebuild_custom_rules')\n  )\n)",
+                "runAfter": {
+                    "Rebuild_custom_rules": [
+                        "SUCCEEDED"
+                    ]
+                }
+            },
+            "HTTP_PUT_to_WAF": {
+                "type": "Http",
+                "inputs": {
+                    "uri": "https://management.azure.com/subscriptions/87263304-f972-4f60-829d-2219630b0572/resourceGroups/RG-AGW-PUBHUB-UAEN-01/providers/Microsoft.Network/ApplicationGatewayWebApplicationFirewallPolicies/WAF-PUBHUB-UAEN-SOCBlockTest?api-version=2023-09-01",
+                    "method": "PUT",
+                    "headers": {
+                        "Content-Type": "application/json",
+                        "If-Match": "@{body('HTTP_get_policy')?['etag']}"
+                    },
+                    "body": "@outputs('Rebuild_HTTP_PUT_to_WAF')",
+                    "authentication": {
+                        "type": "ManagedServiceIdentity",
+                        "audience": "https://management.azure.com/"
+                    }
+                },
+                "runAfter": {
+                    "Rebuild_HTTP_PUT_to_WAF": [
+                        "SUCCEEDED"
+                    ]
+                },
+                "runtimeConfiguration": {
+                    "contentTransfer": {
+                        "transferMode": "Chunked"
+                    }
+                }
+            },
+            "Get_blob_content_JSON_SOT": {
+                "type": "ServiceProvider",
+                "inputs": {
+                    "parameters": {
+                        "containerName": "sentinel-waf-edl-ip-sot-prd",
+                        "blobName": "maliciousips_SOT.json"
+                    },
+                    "serviceProviderConfiguration": {
+                        "connectionName": "AzureBlob-5",
+                        "operationId": "readBlob",
+                        "serviceProviderId": "/serviceProviders/AzureBlob"
+                    }
+                },
+                "runAfter": {
+                    "For_each": [
+                        "SUCCEEDED"
+                    ]
+                }
+            },
+            "Compose_Final_SOC_JSON": {
+                "type": "Compose",
+                "inputs": "@variables('Source of Truth Values')",
+                "runAfter": {
+                    "Get_blob_content_JSON_SOT": [
+                        "SUCCEEDED"
+                    ]
+                }
+            },
+            "Compose_Final_Blob_JSON": {
+                "type": "Compose",
+                "inputs": "@body('Get_blob_content_JSON_SOT')?['content']",
+                "runAfter": {
+                    "Compose_Final_SOC_JSON": [
+                        "SUCCEEDED"
+                    ]
+                }
+            },
+            "Compose_Final_SOT": {
+                "type": "Compose",
+                "inputs": "@union(\n  outputs('Compose_Final_Blob_JSON'),\n  outputs('Compose_Final_SOC_JSON')\n)",
+                "runAfter": {
+                    "Compose_Final_Blob_JSON": [
+                        "SUCCEEDED"
+                    ]
+                }
+            },
+            "Upload_blob_to_storage_container_SOT": {
+                "type": "ServiceProvider",
+                "inputs": {
+                    "parameters": {
+                        "containerName": "sentinel-waf-edl-ip-sot-prd",
+                        "blobName": "maliciousips_SOT.json",
+                        "content": "@outputs('Compose_Final_SOT')",
+                        "overrideIfExists": "true"
+                    },
+                    "serviceProviderConfiguration": {
+                        "connectionName": "AzureBlob-5",
+                        "operationId": "uploadBlob",
+                        "serviceProviderId": "/serviceProviders/AzureBlob"
+                    }
+                },
+                "runAfter": {
+                    "Compose_Final_SOT": [
+                        "SUCCEEDED"
+                    ]
+                }
+            }
+        },
+        "outputs": {},
+        "triggers": {
+            "Microsoft_Sentinel_incident": {
+                "type": "ApiConnectionWebhook",
+                "inputs": {
+                    "host": {
+                        "connection": {
+                            "referenceName": "azuresentinel-3"
+                        }
+                    },
+                    "body": {
+                        "callback_url": "@listCallbackUrl()"
+                    },
+                    "path": "/incident-creation"
+                }
+            }
+        }
+    },
+    "kind": "Stateful"
+}
